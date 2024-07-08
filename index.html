@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="utf-8">
+    <title>Earthquake List</title>
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.5.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.5.0/mapbox-gl.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+        #container {
+            display: flex;
+            height: 100vh;
+            flex-direction: row;
+            align-items: stretch;
+        }
+        #side-panel {
+            flex-basis: 500px;
+            overflow-y: scroll;
+        }
+        #map {
+            flex-grow: 1;
+        }
+        button {
+            margin-bottom: 10px;
+        }
+        table {
+            border-collapse: collapse;
+            border-spacing: 0;
+            width: 100%;
+            border: 1px solid #ddd;
+        }
+        th, td {
+            text-align: left;
+            padding: 16px;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <main id="container">
+        <div id="side-panel">
+            <h2>Earthquake List</h2>
+            <button id="sort-button">Sort by Magnitude</button>
+            <table id="earthquake-table">
+                <thead>
+                    <tr>
+                        <th>id</th>
+                        <th>magnitude</th>
+                        <th>timestamp</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Data will be dynamically inserted here -->
+                </tbody>
+            </table>
+        </div>
+        <div id="map"></div>
+    </main>
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoiamFrb2J6aGFvIiwiYSI6ImNpcms2YWsyMzAwMmtmbG5icTFxZ3ZkdncifQ.P9MBej1xacybKcDN_jehvw'; 
+        let map = new mapboxgl.Map({
+            container: 'map', // container ID
+            style: 'mapbox://styles/mapbox/satellite-v9', // style URL
+            zoom: 5.5, // starting zoom
+            center: [138, 38] // starting center
+        });
+
+        async function geojsonFetch() {
+            let response, earthquakes, japan;
+            try {
+                response = await fetch('assets/earthquakes.geojson');
+                earthquakes = await response.json();
+
+                response = await fetch('assets/japan.json');
+                japan = await response.json();
+
+                // Populate the earthquake table
+                const table = document.getElementById("earthquake-table").getElementsByTagName("tbody")[0];
+                let row, cell1, cell2, cell3;
+                for (let i = 0; i < earthquakes.features.length; i++) {
+                    // Create an empty <tr> element and add it to the end of the table:
+                    row = table.insertRow(-1);
+                    cell1 = row.insertCell(0);
+                    cell2 = row.insertCell(1);
+                    cell3 = row.insertCell(2);
+                    cell1.innerHTML = earthquakes.features[i].properties.id;
+                    cell2.innerHTML = earthquakes.features[i].properties.mag;
+                    cell3.innerHTML = new Date(earthquakes.features[i].properties.time).toLocaleDateString("en-US");
+                }
+
+                // Load data to the map as new layers
+                map.on('load', function loadingData() {
+                    map.addSource('earthquakes', {
+                        type: 'geojson',
+                        data: earthquakes
+                    });
+
+                    map.addLayer({
+                        'id': 'earthquakes-layer',
+                        'type': 'circle',
+                        'source': 'earthquakes',
+                        'paint': {
+                            'circle-radius': 8,
+                            'circle-stroke-width': 2,
+                            'circle-color': 'red',
+                            'circle-stroke-color': 'white'
+                        }
+                    });
+
+                    map.addSource('japan', {
+                        type: 'geojson',
+                        data: japan
+                    });
+
+                    map.addLayer({
+                        'id': 'japan-layer',
+                        'type': 'fill',
+                        'source': 'japan',
+                        'paint': {
+                            'fill-color': '#0080ff', // blue color fill
+                            'fill-opacity': 0.5
+                        }
+                    });
+                });
+            } catch (error) {
+                console.error('Error fetching GeoJSON data:', error);
+            }
+        }
+
+        // Initial population of the table and map
+        geojsonFetch();
+
+        // Define the function to sort the table
+        function sortTable(e) {
+            let table, rows, switching, i, x, y, shouldSwitch;
+            table = document.getElementsByTagName("table")[0];
+            switching = true;
+            // Make a loop that will continue until no switching has been done
+            while (switching) {
+                switching = false;
+                rows = table.rows;
+                // Loop through all table rows (except the first, which contains table headers)
+                for (i = 1; i < (rows.length - 1); i++) {
+                    shouldSwitch = false;
+                    // Get the two elements to compare, one from the current row and one from the next
+                    x = parseFloat(rows[i].getElementsByTagName("td")[1].innerHTML);
+                    y = parseFloat(rows[i + 1].getElementsByTagName("td")[1].innerHTML);
+                    // Check if the two rows should switch place
+                    if (x < y) {
+                        shouldSwitch = true;
+                        break;
+                    }
+                }
+                if (shouldSwitch) {
+                    rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                    switching = true;
+                }
+            }
+        }
+
+        // Add event listener to the button
+        let btn = document.getElementsByTagName("button")[0];
+        btn.addEventListener('click', sortTable);
+    </script>
+</body>
+</html>
