@@ -2,7 +2,7 @@
 <html lang="en-US">
 <head>
     <meta charset="utf-8">
-    <title>Earthquake List</title>
+    <title>Hawaii Earthquake List</title>
     <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no">
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.5.0/mapbox-gl.css" rel="stylesheet">
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.5.0/mapbox-gl.js"></script>
@@ -52,7 +52,7 @@
 <body>
     <main id="container">
         <div id="side-panel">
-            <h2>Earthquake List</h2>
+            <h2 id="panel-title">Hawaii Earthquake List</h2>
             <button id="sort-button">Sort by Magnitude</button>
             <table id="earthquake-table">
                 <thead>
@@ -62,118 +62,93 @@
                         <th>timestamp</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="table-body">
                     <!-- Data will be dynamically inserted here -->
                 </tbody>
             </table>
+            <div id="change-date-buttons">
+                <button onclick="toggleDataset('30 days')">Earthquakes in the past 30 days</button>
+                <button onclick="toggleDataset('7 days')">Earthquakes in the past 7 days</button>
+            </div>
         </div>
         <div id="map"></div>
     </main>
     <script>
-        mapboxgl.accessToken = 'pk.eyJ1IjoiamFrb2J6aGFvIiwiYSI6ImNpcms2YWsyMzAwMmtmbG5icTFxZ3ZkdncifQ.P9MBej1xacybKcDN_jehvw'; 
+        mapboxgl.accessToken = 'pk.eyJ1IjoidmluY2VudGgxNCIsImEiOiJjbHlubm1lMDIwN2tmMmlwd2hxNWQ5NXVoIn0.IU4leHi2wc6h9qIkPJAb4g';
         let map = new mapboxgl.Map({
-            container: 'map', // container ID
-            style: 'mapbox://styles/mapbox/dark-v11', // Change map style here
-            zoom: 5.5, // starting zoom
-            center: [138, 38] // starting center
+            container: 'map',
+            style: 'mapbox://styles/mapbox/streets-v11',
+            zoom: 5.5,
+            center: [-155.5828, 19.8968] // Centered on Hawaii
         });
 
-        async function geojsonFetch() {
-            let response, earthquakes, japan;
-            try {
-                response = await fetch('assets/earthquakes_hawaii.geojson');
-                earthquakes = await response.json();
+        let currentData = null;
 
-                response = await fetch('assets/japan.json');
-                japan = await response.json();
+        function toggleDataset(dataset) {
+            const url = dataset === '30 days' ? 'assets/earthquake_hawaii_30days.geojson' : 'assets/earthquake_hawaii_7days.geojson';
+            const title = dataset === '30 days' ? 'Hawaii Earthquakes in the Past 30 Days' : 'Hawaii Earthquakes in the Past 7 Days';
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    currentData = data;
+                    document.getElementById('panel-title').innerText = title;
+                    updateMap();
+                    updateSidebar();
+                })
+                .catch(error => console.error('Error fetching data:', error));
+        }
 
-                // Populate the earthquake table
-                const table = document.getElementById("earthquake-table").getElementsByTagName("tbody")[0];
-                let row, cell1, cell2, cell3;
-                for (let i = 0; i < earthquakes.features.length; i++) {
-                    // Create an empty <tr> element and add it to the end of the table:
-                    row = table.insertRow(-1);
-                    cell1 = row.insertCell(0);
-                    cell2 = row.insertCell(1);
-                    cell3 = row.insertCell(2);
-                    cell1.innerHTML = earthquakes.features[i].properties.id;
-                    cell2.innerHTML = earthquakes.features[i].properties.mag;
-                    cell3.innerHTML = new Date(earthquakes.features[i].properties.time).toLocaleDateString("en-US");
-                }
+        function updateMap() {
+            // Remove all existing markers
+            document.querySelectorAll('.mapboxgl-marker').forEach(marker => marker.remove());
 
-                // Load data to the map as new layers
-                map.on('load', function loadingData() {
-                    map.addSource('earthquakes', {
-                        type: 'geojson',
-                        data: earthquakes
-                    });
-
-                    map.addLayer({
-                        'id': 'earthquakes-layer',
-                        'type': 'circle',
-                        'source': 'earthquakes',
-                        'paint': {
-                            'circle-radius': 8,
-                            'circle-stroke-width': 2,
-                            'circle-color': 'red',
-                            'circle-stroke-color': 'white'
-                        }
-                    });
-
-                    map.addSource('japan', {
-                        type: 'geojson',
-                        data: japan
-                    });
-
-                    map.addLayer({
-                        'id': 'japan-layer',
-                        'type': 'fill',
-                        'source': 'japan',
-                        'paint': {
-                            'fill-color': '#0080ff', // blue color fill
-                            'fill-opacity': 0.5
-                        }
-                    });
+            // Add new markers
+            if (currentData && currentData.features) {
+                currentData.features.forEach(feature => {
+                    new mapboxgl.Marker()
+                        .setLngLat(feature.geometry.coordinates.slice(0, 2))
+                        .addTo(map);
                 });
-            } catch (error) {
-                console.error('Error fetching GeoJSON data:', error);
             }
         }
 
-        // Initial population of the table and map
-        geojsonFetch();
+        function updateSidebar() {
+            let tbody = document.getElementById('table-body');
+            // Clear existing table rows
+            tbody.innerHTML = '';
 
-        // Define the function to sort the table
-        function sortTable(e) {
-            let table, rows, switching, i, x, y, shouldSwitch;
-            table = document.getElementsByTagName("table")[0];
-            switching = true;
-            // Make a loop that will continue until no switching has been done
-            while (switching) {
-                switching = false;
-                rows = table.rows;
-                // Loop through all table rows (except the first, which contains table headers)
-                for (i = 1; i < (rows.length - 1); i++) {
-                    shouldSwitch = false;
-                    // Get the two elements to compare, one from the current row and one from the next
-                    x = parseFloat(rows[i].getElementsByTagName("td")[1].innerHTML);
-                    y = parseFloat(rows[i + 1].getElementsByTagName("td")[1].innerHTML);
-                    // Check if the two rows should switch place
-                    if (x < y) {
-                        shouldSwitch = true;
-                        break;
-                    }
-                }
-                if (shouldSwitch) {
-                    rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
-                    switching = true;
-                }
+            if (currentData && currentData.features) {
+                currentData.features.forEach(feature => {
+                    let date = new Date(feature.properties.time);
+                    let row = tbody.insertRow();
+                    row.insertCell(0).innerText = feature.id || feature.properties.OBJECTID_1;
+                    row.insertCell(1).innerText = feature.properties.mag || feature.properties.magnitude;
+                    row.insertCell(2).innerText = date.toLocaleDateString();
+                });
             }
         }
 
-        // Add event listener to the button
-        let btn = document.getElementById("sort-button");
-        btn.addEventListener('click', sortTable);
+        function sortTable() {
+            let table = document.getElementById('table-body');
+            let rows = Array.from(table.rows);
+
+            rows.sort((a, b) => {
+                let magA = parseFloat(a.cells[1].innerText);
+                let magB = parseFloat(b.cells[1].innerText);
+                return magB - magA; // Sort descending by magnitude
+            });
+
+            // Clear the table and append sorted rows
+            table.innerHTML = '';
+            rows.forEach(row => table.appendChild(row));
+        }
+
+        // Add event listener to the sort button
+        document.getElementById('sort-button').addEventListener('click', sortTable);
+
+        // Initial load with Hawaii Earthquakes in the past 30 days
+        toggleDataset('30 days');
     </script>
 </body>
 </html>
