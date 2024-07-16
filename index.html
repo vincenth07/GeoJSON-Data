@@ -53,6 +53,10 @@
     <main id="container">
         <div id="side-panel">
             <h2 id="panel-title">Hawaii Earthquake List</h2>
+            <div id="change-date-buttons">
+                <button onclick="toggleDataset('30 days')">Earthquakes in the past 30 days</button>
+                <button onclick="toggleDataset('7 days')">Earthquakes in the past 7 days</button>
+            </div>
             <button id="sort-button">Sort by Magnitude</button>
             <table id="earthquake-table">
                 <thead>
@@ -65,10 +69,6 @@
                 <tbody id="table-body">
                     <!-- Data will be dynamically inserted here -->
                 </tbody>
-                <div id="change-date-buttons">
-                    <button onclick="toggleDataset('30 days')">Earthquakes in the past 30 days</button>
-                    <button onclick="toggleDataset('7 days')">Earthquakes in the past 7 days</button>
-                 </div>
             </table>
         </div>
         <div id="map"></div>
@@ -77,7 +77,7 @@
         mapboxgl.accessToken = 'pk.eyJ1IjoidmluY2VudGgxNCIsImEiOiJjbHlubm1lMDIwN2tmMmlwd2hxNWQ5NXVoIn0.IU4leHi2wc6h9qIkPJAb4g';
         let map = new mapboxgl.Map({
             container: 'map',
-            style: 'mapbox://styles/mapbox/outdoors-v12',
+            style: 'mapbox://styles/mapbox/navigation-night-v1',
             zoom: 5.5,
             center: [-155.5828, 19.8968] // Centered on Hawaii
         });
